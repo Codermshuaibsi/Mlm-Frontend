@@ -108,7 +108,7 @@ export default function ForgotPasswordModal({ isOpen, onClose, API_BASE_URL }) {
   };
 
   const stepDescriptions = {
-    1: "Enter your email address and we'll send you a verification code",
+    1: "Enter your email address and we&apos;ll send you a verification code",
     2: "Enter the 6-digit code sent to your email",
     3: "Create a new secure password for your account"
   };
@@ -340,7 +340,7 @@ export default function ForgotPasswordModal({ isOpen, onClose, API_BASE_URL }) {
           {step === 2 && (
             <div className="mt-6 text-center">
               <p className="text-xs text-white/50">
-                Didn't receive the code?{" "}
+                Didn&apos;t receive the code?{" "}
                 <button
                   onClick={handleSendOTP}
                   disabled={loading}

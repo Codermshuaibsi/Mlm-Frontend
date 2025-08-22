@@ -255,9 +255,13 @@ const ModernMLMDashboard = () => {
             if (frameRef.current) {
                 cancelAnimationFrame(frameRef.current);
             }
-            if (mountRef.current && renderer.domElement && mountRef.current.contains(renderer.domElement)) {
-                mountRef.current.removeChild(renderer.domElement);
-            }
+            const currentMount = mountRef.current;
+            return () => {
+                if (currentMount && renderer.domElement && currentMount.contains(renderer.domElement)) {
+                    currentMount.removeChild(renderer.domElement);
+                }
+            };
+
             scene.traverse((object) => {
                 if (object.geometry) object.geometry.dispose();
                 if (object.material) object.material.dispose();
@@ -410,16 +414,9 @@ const ModernMLMDashboard = () => {
     };
 
     useEffect(() => {
-        if (user?.id) {
-            fetchReferrals();
-        }
-    }, [user]);
+        if (user?.id) fetchReferrals();
+    }, [user, fetchReferrals]);
 
-    useEffect(() => {
-        if (user?.id) {
-            fetchReferrals();
-        }
-    }, [user]);
 
     const fetchUserWithdrawals = async () => {
         try {
@@ -435,7 +432,8 @@ const ModernMLMDashboard = () => {
     };
 
     useEffect(() => {
-        if (user?.id) fetchUserWithdrawals();
+        if (user?.id)
+            fetchUserWithdrawals();
     }, [user]);
 
     const StatCard = ({ title, value, icon: Icon, gradient, subtitle, trend }) => (
@@ -684,7 +682,7 @@ const ModernMLMDashboard = () => {
                                                     </div>
                                                     <p className="text-gray-300 text-sm">
                                                         Your investment will be activated within 24-48 hours after admin verification.
-                                                        You'll receive an email confirmation once approved.
+                                                        You&apos;ll receive an email confirmation once approved.
                                                     </p>
                                                 </div>
                                             </div>
@@ -1032,7 +1030,7 @@ const ModernMLMDashboard = () => {
                                     <div className="p-4 rounded-xl bg-white/5 border border-white/10">
                                         <p className="text-sm text-gray-400 text-center leading-relaxed">
                                             Withdrawals are processed securely through our automated system.
-                                            You'll receive a confirmation email once your request is approved.
+                                            You&apos;ll receive a confirmation email once your request is approved.
                                         </p>
                                     </div>
                                 </div>
@@ -1140,7 +1138,7 @@ const ModernMLMDashboard = () => {
                             <div className="flex flex-col lg:flex-row lg:items-center justify-between">
                                 <div className="mb-6 lg:mb-0">
                                     <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-blue-600 bg-clip-text text-transparent mb-3">
-                                        Welcome Back, {user.name}!
+                                        Welcome Back {user.name}!
                                     </h1>
                                     <p className="text-gray-300 text-lg">
                                         Member since {formatDate(user.createdAt)} • ID: {user.referral_code}
@@ -1294,103 +1292,103 @@ const ModernMLMDashboard = () => {
                         </div>
 
                         {/* Recent Activity & Performance */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-  {/* Recent Activity */}
-  <div className="backdrop-blur-2xl bg-white/5 rounded-3xl p-6 md:p-8 border border-white/10">
-    <h2 className="text-xl md:text-2xl font-bold text-white mb-4 md:mb-6 flex items-center">
-      <BarChart3 className="w-5 h-5 md:w-6 md:h-6 mr-2 md:mr-3 text-blue-400" />
-      Recent Activity
-    </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+                            {/* Recent Activity */}
+                            <div className="backdrop-blur-2xl bg-white/5 rounded-3xl p-6 md:p-8 border border-white/10">
+                                <h2 className="text-xl md:text-2xl font-bold text-white mb-4 md:mb-6 flex items-center">
+                                    <BarChart3 className="w-5 h-5 md:w-6 md:h-6 mr-2 md:mr-3 text-blue-400" />
+                                    Recent Activity
+                                </h2>
 
-    <div className="space-y-3 md:space-y-4">
-      {[
-        { type: 'investment', amount: user.investment, desc: 'Initial Investment', date: user.createdAt, color: 'green' },
-        { type: 'roi', amount: user.wallets.roi, desc: 'ROI Generated', date: new Date().toISOString(), color: 'blue' },
-        { type: 'verification', amount: 0, desc: 'Account Verified', date: user.createdAt, color: 'purple' }
-      ].map((activity, index) => (
-        <div
-          key={index}
-          className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 rounded-xl bg-gradient-to-r from-${activity.color}-500/10 to-${activity.color}-600/10 border border-${activity.color}-400/20 hover:border-${activity.color}-400/40 transition-all duration-300`}
-        >
-          <div className="flex items-center space-x-3 md:space-x-4 mb-2 sm:mb-0">
-            <div className={`p-2 md:p-3 rounded-xl bg-${activity.color}-500/20`}>
-              {activity.type === 'investment' && <DollarSign className={`w-4 h-4 md:w-5 md:h-5 text-${activity.color}-400`} />}
-              {activity.type === 'roi' && <TrendingUp className={`w-4 h-4 md:w-5 md:h-5 text-${activity.color}-400`} />}
-              {activity.type === 'verification' && <Shield className={`w-4 h-4 md:w-5 md:h-5 text-${activity.color}-400`} />}
-            </div>
-            <div>
-              <p className="text-white text-sm md:text-base font-medium">{activity.desc}</p>
-              <p className="text-gray-400 text-xs md:text-sm">{formatDate(activity.date)}</p>
-            </div>
-          </div>
-          <div className="text-right">
-            {activity.amount > 0 && (
-              <p className={`text-${activity.color}-400 font-bold text-sm md:text-base`}>+${activity.amount}</p>
-            )}
-            <div className={`flex items-center justify-end text-${activity.color}-400 text-xs font-medium`}>
-              <div className={`w-2 h-2 bg-${activity.color}-400 rounded-full mr-1 ${activity.type === 'roi' ? 'animate-pulse' : ''}`} />
-              {activity.type === 'verification' ? 'Verified' : 'Complete'}
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
+                                <div className="space-y-3 md:space-y-4">
+                                    {[
+                                        { type: 'investment', amount: user.investment, desc: 'Initial Investment', date: user.createdAt, color: 'green' },
+                                        { type: 'roi', amount: user.wallets.roi, desc: 'ROI Generated', date: new Date().toISOString(), color: 'blue' },
+                                        { type: 'verification', amount: 0, desc: 'Account Verified', date: user.createdAt, color: 'purple' }
+                                    ].map((activity, index) => (
+                                        <div
+                                            key={index}
+                                            className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 rounded-xl bg-gradient-to-r from-${activity.color}-500/10 to-${activity.color}-600/10 border border-${activity.color}-400/20 hover:border-${activity.color}-400/40 transition-all duration-300`}
+                                        >
+                                            <div className="flex items-center space-x-3 md:space-x-4 mb-2 sm:mb-0">
+                                                <div className={`p-2 md:p-3 rounded-xl bg-${activity.color}-500/20`}>
+                                                    {activity.type === 'investment' && <DollarSign className={`w-4 h-4 md:w-5 md:h-5 text-${activity.color}-400`} />}
+                                                    {activity.type === 'roi' && <TrendingUp className={`w-4 h-4 md:w-5 md:h-5 text-${activity.color}-400`} />}
+                                                    {activity.type === 'verification' && <Shield className={`w-4 h-4 md:w-5 md:h-5 text-${activity.color}-400`} />}
+                                                </div>
+                                                <div>
+                                                    <p className="text-white text-sm md:text-base font-medium">{activity.desc}</p>
+                                                    <p className="text-gray-400 text-xs md:text-sm">{formatDate(activity.date)}</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                {activity.amount > 0 && (
+                                                    <p className={`text-${activity.color}-400 font-bold text-sm md:text-base`}>+${activity.amount}</p>
+                                                )}
+                                                <div className={`flex items-center justify-end text-${activity.color}-400 text-xs font-medium`}>
+                                                    <div className={`w-2 h-2 bg-${activity.color}-400 rounded-full mr-1 ${activity.type === 'roi' ? 'animate-pulse' : ''}`} />
+                                                    {activity.type === 'verification' ? 'Verified' : 'Complete'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
 
-  {/* Performance Overview */}
-  <div className="backdrop-blur-2xl bg-white/5 rounded-3xl p-6 md:p-8 border border-white/10">
-    <h2 className="text-xl md:text-2xl font-bold text-white mb-4 md:mb-6 flex items-center">
-      <Award className="w-5 h-5 md:w-6 md:h-6 mr-2 md:mr-3 text-orange-400" />
-      Performance Overview
-    </h2>
+                            {/* Performance Overview */}
+                            <div className="backdrop-blur-2xl bg-white/5 rounded-3xl p-6 md:p-8 border border-white/10">
+                                <h2 className="text-xl md:text-2xl font-bold text-white mb-4 md:mb-6 flex items-center">
+                                    <Award className="w-5 h-5 md:w-6 md:h-6 mr-2 md:mr-3 text-orange-400" />
+                                    Performance Overview
+                                </h2>
 
-    <div className="space-y-6">
-      {/* ROI Progress */}
-      <div className="space-y-3 md:space-y-4">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center">
-            <div className="w-2 h-2 md:w-3 md:h-3 bg-blue-400 rounded-full mr-2 md:mr-3" />
-            <span className="text-gray-300 text-sm md:text-base">ROI Progress</span>
-          </div>
-          <span className="text-white font-semibold text-sm md:text-base">${user.wallets.roi}</span>
-        </div>
-        <div className="w-full bg-gray-700/30 rounded-full h-2 md:h-3">
-          <div
-            className="bg-gradient-to-r from-blue-500 to-cyan-600 h-2 md:h-3 rounded-full transition-all duration-1000"
-            style={{ width: `${Math.min((user.wallets.roi / user.investment) * 100, 100)}%` }}
-          />
-        </div>
-        <p className="text-blue-200 text-xs md:text-sm">
-          {((user.wallets.roi / user.investment) * 100).toFixed(1)}% return on initial investment
-        </p>
-      </div>
+                                <div className="space-y-6">
+                                    {/* ROI Progress */}
+                                    <div className="space-y-3 md:space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex items-center">
+                                                <div className="w-2 h-2 md:w-3 md:h-3 bg-blue-400 rounded-full mr-2 md:mr-3" />
+                                                <span className="text-gray-300 text-sm md:text-base">ROI Progress</span>
+                                            </div>
+                                            <span className="text-white font-semibold text-sm md:text-base">${user.wallets.roi}</span>
+                                        </div>
+                                        <div className="w-full bg-gray-700/30 rounded-full h-2 md:h-3">
+                                            <div
+                                                className="bg-gradient-to-r from-blue-500 to-cyan-600 h-2 md:h-3 rounded-full transition-all duration-1000"
+                                                style={{ width: `${Math.min((user.wallets.roi / user.investment) * 100, 100)}%` }}
+                                            />
+                                        </div>
+                                        <p className="text-blue-200 text-xs md:text-sm">
+                                            {((user.wallets.roi / user.investment) * 100).toFixed(1)}% return on initial investment
+                                        </p>
+                                    </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 md:gap-4">
-        <div className="text-center p-3 md:p-4 rounded-xl bg-gradient-to-br from-green-500/10 to-emerald-600/10 border border-green-400/20">
-          <p className="text-lg md:text-2xl font-bold text-green-400">1</p>
-          <p className="text-gray-300 text-xs md:text-sm">Current Level</p>
-        </div>
-        <div className="text-center p-3 md:p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-600/10 border border-purple-400/20">
-          <p className="text-lg md:text-2xl font-bold text-purple-400">0</p>
-          <p className="text-gray-300 text-xs md:text-sm">Team Size</p>
-        </div>
-      </div>
+                                    {/* Stats */}
+                                    <div className="grid grid-cols-2 gap-3 md:gap-4">
+                                        <div className="text-center p-3 md:p-4 rounded-xl bg-gradient-to-br from-green-500/10 to-emerald-600/10 border border-green-400/20">
+                                            <p className="text-lg md:text-2xl font-bold text-green-400">1</p>
+                                            <p className="text-gray-300 text-xs md:text-sm">Current Level</p>
+                                        </div>
+                                        <div className="text-center p-3 md:p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-600/10 border border-purple-400/20">
+                                            <p className="text-lg md:text-2xl font-bold text-purple-400">0</p>
+                                            <p className="text-gray-300 text-xs md:text-sm">Team Size</p>
+                                        </div>
+                                    </div>
 
-      {/* Total Earnings */}
-      <div className="p-3 md:p-4 rounded-xl bg-gradient-to-r from-orange-500/10 to-red-600/10 border border-orange-400/20">
-        <div className="flex items-center justify-between mb-1 md:mb-2">
-          <p className="text-orange-400 font-medium text-sm md:text-base">Total Earnings</p>
-          <p className="text-lg md:text-2xl font-bold text-white">${user.wallets.total_Income}</p>
-        </div>
-        <p className="text-orange-200 text-xs md:text-sm">
-          Growth: {user.wallets.total_Income > user.investment ? '+' : ''}
-          {((user.wallets.total_Income / user.investment) * 100 - 100).toFixed(1)}% since joining
-        </p>
-      </div>
-    </div>
-  </div>
-</div>
+                                    {/* Total Earnings */}
+                                    <div className="p-3 md:p-4 rounded-xl bg-gradient-to-r from-orange-500/10 to-red-600/10 border border-orange-400/20">
+                                        <div className="flex items-center justify-between mb-1 md:mb-2">
+                                            <p className="text-orange-400 font-medium text-sm md:text-base">Total Earnings</p>
+                                            <p className="text-lg md:text-2xl font-bold text-white">${user.wallets.total_Income}</p>
+                                        </div>
+                                        <p className="text-orange-200 text-xs md:text-sm">
+                                            Growth: {user.wallets.total_Income > user.investment ? '+' : ''}
+                                            {((user.wallets.total_Income / user.investment) * 100 - 100).toFixed(1)}% since joining
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
                     </div>
                 );

@@ -319,7 +319,8 @@ export default function MLMAuthComponent() {
                 <div className="text-center mb-8">
                   <h2 className="text-2xl font-bold text-white mb-2">Verify Your Email</h2>
                   <p className="text-gray-300 text-sm">
-                    We've sent a 6-digit code to your email
+                    <p>We&apos;ve sent a 6-digit code to your email</p>
+
                   </p>
                 </div>
 
