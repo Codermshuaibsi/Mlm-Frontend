@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import * as THREE from 'three';
 import {
     BarChart3,
@@ -58,8 +58,11 @@ const ModernMLMDashboard = () => {
     const [referrals, setReferrals] = useState([]);
     const [loading, setLoading] = useState(true);
     const [withdrawals, setWithdrawals] = useState([]);
-
-    // Mock user data for demonstration
+    const [stats, setStats] = useState({
+        total: 0,
+        active: 0,
+        thisMonth: 0,
+    });
 
     const { userData } = useAuth();
     const router = useRouter();
@@ -71,85 +74,60 @@ const ModernMLMDashboard = () => {
         }
     }, [userData, router]);
 
-    // Prevent hydration error by rendering same thing on SSR & first client render
-    if (!userData || !userData.user) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-slate-900 text-white">
-                Loading...
-            </div>
-        );
-    }
+    // Move fetchReferrals inside useCallback to prevent dependency issues
+    const fetchReferrals = useCallback(async () => {
+        if (!userData?.user?.id) return;
 
-    const user = userData.user;
-    // console.log(user);
+        try {
+            setLoading(true);
+            const res = await fetch(`https://unilevel-mlm.onrender.com/api/auth/my-referrals/${userData.user.id}`);
+            const data = await res.json();
 
-    // Investment packages
-    const investmentPackages = [
-        {
-            id: 1,
-            name: "Starter Package",
-            amount: 100,
-            daily_roi: "2%",
-            total_roi: "140%",
-            duration: "70 days",
-            color: "from-blue-500 to-cyan-500"
-        },
-        {
-            id: 2,
-            name: "Professional Package",
-            amount: 500,
-            daily_roi: "2.5%",
-            total_roi: "175%",
-            duration: "70 days",
-            color: "from-purple-500 to-pink-500"
-        },
-        {
-            id: 3,
-            name: "Premium Package",
-            amount: 1000,
-            daily_roi: "3%",
-            total_roi: "210%",
-            duration: "70 days",
-            color: "from-green-500 to-emerald-500"
-        },
-        {
-            id: 4,
-            name: "VIP Package",
-            amount: 2500,
-            daily_roi: "3.5%",
-            total_roi: "245%",
-            duration: "70 days",
-            color: "from-orange-500 to-red-500"
+            if (!res.ok) throw new Error(data.message || "Failed to fetch referrals");
+
+            const members = data.members || [];
+
+            // Calculate stats
+            const total = members.length;
+            const active = members.filter((m) => m.investment > 0).length;
+            const thisMonth = members.filter((m) => {
+                const createdAt = new Date(m.createdAt || m.joinedAt);
+                const now = new Date();
+                return (
+                    createdAt.getMonth() === now.getMonth() &&
+                    createdAt.getFullYear() === now.getFullYear()
+                );
+            }).length;
+
+            setReferrals(members);
+            setStats({ total, active, thisMonth });
+        } catch (error) {
+            console.error("Referral fetch error:", error);
+            setReferrals([]);
+            setStats({ total: 0, active: 0, thisMonth: 0 });
+        } finally {
+            setLoading(false);
         }
-    ];
+    }, [userData?.user?.id]);
 
-    // Admin crypto addresses (mock data)
-    const adminAddresses = {
-        bitcoin: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
-        ethereum: "0x742b7fE9B8F0c7A5e8C9F0d2e3A4B5C6D7E8F9A0",
-        usdt: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE"
-    };
+    const fetchUserWithdrawals = useCallback(async () => {
+        if (!userData?.user?.id) return;
 
-    // Navigation items with modern icons
-    const navItems = [
-        { id: 'dashboard', label: 'Dashboard', icon: Home, color: 'from-blue-500 to-cyan-500' },
-        { id: 'invest', label: 'Invest', icon: TrendingUp, color: 'from-emerald-500 to-green-500' },
-        { id: 'network', label: 'My Network', icon: Users, color: 'from-purple-500 to-pink-500' },
-        { id: 'referrals', label: 'Referrals', icon: UserPlus, color: 'from-green-500 to-emerald-500' },
-        { id: 'transactions', label: 'Transactions', icon: CreditCard, color: 'from-orange-500 to-red-500' },
-        { id: 'wallet', label: 'Wallet', icon: Wallet, color: 'from-yellow-500 to-orange-500' },
-        { id: 'settings', label: 'Settings', icon: Settings, color: 'from-gray-500 to-slate-500' },
-    ];
-
-    const handleLogout = () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("userData");
-        router.push("/");
-    }
+        try {
+            const res = await fetch(`https://unilevel-mlm.onrender.com/api/withdrawal/user/${userData.user.id}`);
+            const data = await res.json();
+            if (res.ok) setWithdrawals(data);
+        } catch (err) {
+            console.error("Error fetching withdrawals:", err);
+        }
+    }, [userData?.user?.id]);
 
     // 3D Background Effect
     useEffect(() => {
         if (!mountRef.current) return;
+
+        // Store the current mount ref value to avoid stale closure
+        const currentMount = mountRef.current;
 
         // Scene setup
         const scene = new THREE.Scene();
@@ -158,7 +136,7 @@ const ModernMLMDashboard = () => {
 
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setClearColor(0x0a0a1a, 1);
-        mountRef.current.appendChild(renderer.domElement);
+        currentMount.appendChild(renderer.domElement);
 
         // Create network nodes
         const nodes = [];
@@ -255,12 +233,10 @@ const ModernMLMDashboard = () => {
             if (frameRef.current) {
                 cancelAnimationFrame(frameRef.current);
             }
-            const currentMount = mountRef.current;
-            return () => {
-                if (currentMount && renderer.domElement && currentMount.contains(renderer.domElement)) {
-                    currentMount.removeChild(renderer.domElement);
-                }
-            };
+
+            if (currentMount && renderer.domElement && currentMount.contains(renderer.domElement)) {
+                currentMount.removeChild(renderer.domElement);
+            }
 
             scene.traverse((object) => {
                 if (object.geometry) object.geometry.dispose();
@@ -269,6 +245,27 @@ const ModernMLMDashboard = () => {
             renderer.dispose();
         };
     }, []);
+
+    useEffect(() => {
+        fetchReferrals();
+    }, [fetchReferrals]);
+
+    useEffect(() => {
+        fetchUserWithdrawals();
+    }, [fetchUserWithdrawals]);
+
+    if (!userData?.user) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-slate-900 text-white">
+                Loading...waiting for user data
+            </div>
+        );
+    }
+
+    const user = userData.user;
+
+    // Rest of your component code remains the same...
+    // (All the other functions, components, and JSX remain unchanged)
 
     const copyToClipboard = (text, field) => {
         navigator.clipboard.writeText(text);
@@ -303,12 +300,12 @@ const ModernMLMDashboard = () => {
 
         try {
             const formData = new FormData();
-            formData.append("userId", user.id);               // logged-in user ID
-            formData.append("proofImage", uploadedFile);      // Multer expects proofImage
+            formData.append("userId", user.id);
+            formData.append("proofImage", uploadedFile);
 
             const response = await fetch("https://unilevel-mlm.onrender.com/api/upload/upload", {
                 method: "POST",
-                body: formData, // no need to set Content-Type, browser handles it
+                body: formData,
             });
 
             const data = await response.json();
@@ -330,10 +327,8 @@ const ModernMLMDashboard = () => {
         } finally {
             setIsSubmitting(false);
         }
-    };
+    }
 
-
-    // Withdraw function
     const handleWithdrawal = async () => {
         if (withdrawalAmount < 50) {
             alert("Minimum withdrawal is $50");
@@ -371,71 +366,71 @@ const ModernMLMDashboard = () => {
         }
     };
 
-
-
-
-    const [stats, setStats] = useState({
-        total: 0,
-        active: 0,
-        thisMonth: 0,
-    });
-
-    const fetchReferrals = async () => {
-        try {
-            setLoading(true);
-            const res = await fetch(`https://unilevel-mlm.onrender.com/api/auth/my-referrals/${user.id}`);
-            const data = await res.json();
-
-            if (!res.ok) throw new Error(data.message || "Failed to fetch referrals");
-
-            const members = data.members || [];
-
-            // Calculate stats
-            const total = members.length;
-            const active = members.filter((m) => m.investment > 0).length;
-            const thisMonth = members.filter((m) => {
-                const createdAt = new Date(m.createdAt || m.joinedAt);
-                const now = new Date();
-                return (
-                    createdAt.getMonth() === now.getMonth() &&
-                    createdAt.getFullYear() === now.getFullYear()
-                );
-            }).length;
-
-            setReferrals(members);
-            setStats({ total, active, thisMonth });
-        } catch (error) {
-            console.error("Referral fetch error:", error);
-            setReferrals([]);
-            setStats({ total: 0, active: 0, thisMonth: 0 });
-        } finally {
-            setLoading(false);
-        }
+    const handleLogout = () => {
+        localStorage.removeItem("token");
+        localStorage.removeItem("userData");
+        router.push("/");
     };
 
-    useEffect(() => {
-        if (user?.id) fetchReferrals();
-    }, [user, fetchReferrals]);
-
-
-    const fetchUserWithdrawals = async () => {
-        try {
-
-            // console.log("Fetching user withdrawals...", user.id);
-            const res = await fetch(`https://unilevel-mlm.onrender.com/api/withdrawal/user/${user.id}`);
-            const data = await res.json();
-            // console.log(data)
-            if (res.ok) setWithdrawals(data);
-        } catch (err) {
-            console.error("Error fetching withdrawals:", err);
+    // Investment packages
+    const investmentPackages = [
+        {
+            id: 1,
+            name: "Starter Package",
+            amount: 100,
+            daily_roi: "2%",
+            total_roi: "140%",
+            duration: "70 days",
+            color: "from-blue-500 to-cyan-500"
+        },
+        {
+            id: 2,
+            name: "Professional Package",
+            amount: 500,
+            daily_roi: "2.5%",
+            total_roi: "175%",
+            duration: "70 days",
+            color: "from-purple-500 to-pink-500"
+        },
+        {
+            id: 3,
+            name: "Premium Package",
+            amount: 1000,
+            daily_roi: "3%",
+            total_roi: "210%",
+            duration: "70 days",
+            color: "from-green-500 to-emerald-500"
+        },
+        {
+            id: 4,
+            name: "VIP Package",
+            amount: 2500,
+            daily_roi: "3.5%",
+            total_roi: "245%",
+            duration: "70 days",
+            color: "from-orange-500 to-red-500"
         }
+    ];
+
+    // Admin crypto addresses (mock data)
+    const adminAddresses = {
+        bitcoin: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
+        ethereum: "0x742b7fE9B8F0c7A5e8C9F0d2e3A4B5C6D7E8F9A0",
+        usdt: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE"
     };
 
-    useEffect(() => {
-        if (user?.id)
-            fetchUserWithdrawals();
-    }, [user]);
+    // Navigation items with modern icons
+    const navItems = [
+        { id: 'dashboard', label: 'Dashboard', icon: Home, color: 'from-blue-500 to-cyan-500' },
+        { id: 'invest', label: 'Invest', icon: TrendingUp, color: 'from-emerald-500 to-green-500' },
+        { id: 'network', label: 'My Network', icon: Users, color: 'from-purple-500 to-pink-500' },
+        { id: 'referrals', label: 'Referrals', icon: UserPlus, color: 'from-green-500 to-emerald-500' },
+        { id: 'transactions', label: 'Transactions', icon: CreditCard, color: 'from-orange-500 to-red-500' },
+        { id: 'wallet', label: 'Wallet', icon: Wallet, color: 'from-yellow-500 to-orange-500' },
+        { id: 'settings', label: 'Settings', icon: Settings, color: 'from-gray-500 to-slate-500' },
+    ];
 
+    // StatCard component and renderContent function remain exactly the same
     const StatCard = ({ title, value, icon: Icon, gradient, subtitle, trend }) => (
         <div className="group relative">
             <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-blue-600/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
